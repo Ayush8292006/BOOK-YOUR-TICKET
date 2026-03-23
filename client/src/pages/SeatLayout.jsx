@@ -43,11 +43,13 @@ const SeatLayout = () => {
     }
   };
 
+  // Get only paid/confirmed seats
   const getOccupiedSeats = async (showId) => {
     try {
       const { data } = await axios.get(`/api/booking/seats/${showId}`);
       if (data.success) {
         setOccupiedSeats(data.occupiedSeats || []);
+        console.log("✅ Occupied seats (paid only):", data.occupiedSeats);
       }
     } catch (error) {
       console.error("Error fetching seats:", error);
@@ -62,7 +64,9 @@ const SeatLayout = () => {
 
   const handleSeatClick = (seatId) => {
     if (!selectedTime) return toast.error("Please select a showtime first");
-    if (occupiedSeats.includes(seatId)) return toast.error("Seat already booked!");
+    if (occupiedSeats.includes(seatId)) {
+      return toast.error("Seat already booked!");
+    }
     
     if (!selectedSeats.includes(seatId) && selectedSeats.length >= 5) {
       return toast.error("Maximum 5 seats allowed");

@@ -23,7 +23,7 @@ export const stripeWebHooks = async (req, res) => {
   try {
     switch (event.type) {
 
-      // ✅ PAYMENT SUCCESS - Yahan seats book hoti hain
+      // ✅ PAYMENT SUCCESS - YAHAN SEATS LOCK HOTI HAIN
       case "checkout.session.completed": {
         const session = event.data.object;
         const { bookingId, showId, seats } = session.metadata;
@@ -36,7 +36,7 @@ export const stripeWebHooks = async (req, res) => {
         const seatsArray = seats.split(",");
         
         console.log(`✅ Payment successful for booking: ${bookingId}`);
-        console.log(`📦 Seats to book: ${seatsArray.join(", ")}`);
+        console.log(`📦 Locking seats: ${seatsArray.join(", ")}`);
 
         // Update booking to paid
         const booking = await Booking.findByIdAndUpdate(bookingId, {
@@ -49,12 +49,12 @@ export const stripeWebHooks = async (req, res) => {
           return res.status(404).json({ success: false, message: "Booking not found" });
         }
 
-        // Block seats in Show model
+        // ✅ LOCK SEATS - Payment success ke BAAD
         await Show.findByIdAndUpdate(showId, {
           $addToSet: { occupiedSeats: { $each: seatsArray } }
         });
 
-        console.log(`✅ Seats ${seatsArray.join(", ")} booked successfully for show ${showId}`);
+        console.log(`✅ Seats ${seatsArray.join(", ")} locked successfully for show ${showId}`);
         break;
       }
 

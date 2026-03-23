@@ -12,27 +12,27 @@ const checkSeatAvailability = async (showId, selectedSeats) => {
   return !selectedSeats.some(seat => occupiedSeats.includes(seat));
 };
 
-// CREATE BOOKING - Payment ke baad hi seats book hongi
+// CREATE BOOKING - Payment success ke baad hi seats lock hongi
 export const createBooking = async (req, res) => {
   try {
     const { showId, seats } = req.body;
     const userId = req.auth().userId;
-    const { origin } = req.headers;
+    const origin = process.env.VITE_BASE_URL || req.headers.origin;
 
     if (!seats || seats.length === 0) {
-      return res.json({ success: false, message: "No seats selected" });
+      return res.status(400).json({ success: false, message: "No seats selected" });
     }
 
-    // Check if seats are available
+    // Check if seats are already booked
     const isAvailable = await checkSeatAvailability(showId, seats);
     if (!isAvailable) {
-      return res.json({ success: false, message: "Seats already booked by someone else" });
+      return res.status(409).json({ success: false, message: "Some seats are already booked!" });
     }
 
     const showData = await Show.findById(showId).populate("movie");
     const amount = Number(showData.showPrice) * seats.length;
 
-    // Create booking with isPaid = false (seats not blocked yet)
+    // Create booking with isPaid = false (NO SEATS LOCKED YET)
     const booking = await Booking.create({
       user: userId,
       show: showId,
@@ -53,7 +53,7 @@ export const createBooking = async (req, res) => {
         },
         quantity: 1,
       }],
-      success_url: `${origin}/my-bookings?success=true&bookingId=${booking._id}&showId=${showId}&seats=${seats.join(",")}`,
+      success_url: `${origin}/my-bookings?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/my-bookings?canceled=true`,
       metadata: { 
         bookingId: booking._id.toString(),
@@ -68,7 +68,7 @@ export const createBooking = async (req, res) => {
     res.json({ success: true, url: session.url });
   } catch (error) {
     console.error("Booking error:", error);
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -78,9 +78,13 @@ export const getOccupiedSeats = async (req, res) => {
     const { showId } = req.params;
     const showData = await Show.findById(showId);
     const occupiedSeats = showData.occupiedSeats || []; 
+    
+    console.log(`📊 Occupied seats for show ${showId}:`, occupiedSeats);
+    
     res.json({ success: true, occupiedSeats });
   } catch (error) {
-    res.json({ success: false, message: error.message });
+    console.error("Error fetching seats:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -98,6 +102,49 @@ export const getUserBookings = async (req, res) => {
     res.json({ success: true, bookings });
   } catch (error) {
     console.log(error.message);
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// CANCEL BOOKING - Cancel booking and release seats
+export const cancelBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const userId = req.auth().userId;
+
+    // Find booking
+    const booking = await Booking.findById(bookingId);
+    
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    // Check if booking belongs to user
+    if (booking.user !== userId) {
+      return res.status(403).json({ success: false, message: "Unauthorized" });
+    }
+
+    // If booking is paid, release seats from Show model
+    if (booking.isPaid) {
+      const showId = booking.show;
+      const seats = booking.bookedSeats;
+      
+      // Release seats from occupiedSeats array
+      await Show.findByIdAndUpdate(showId, {
+        $pull: { occupiedSeats: { $in: seats } }
+      });
+      
+      console.log(`✅ Seats released: ${seats.join(", ")} for show: ${showId}`);
+    }
+
+    // Delete the booking
+    await Booking.findByIdAndDelete(bookingId);
+    
+    console.log(`✅ Booking ${bookingId} cancelled and seats released`);
+
+    res.json({ success: true, message: "Booking cancelled successfully" });
+  } catch (error) {
+    console.error("Cancel booking error:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };

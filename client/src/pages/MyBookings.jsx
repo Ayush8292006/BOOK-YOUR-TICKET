@@ -4,7 +4,7 @@ import BlurCircle from '../components/BlurCircle';
 import timeFormat from '../lib/timeFormat';
 import { dateFormat } from '../lib/dateFormate';
 import { useAppContext } from '../context/AppContext';
-import { Calendar, Clock, ChevronRight, CreditCard } from 'lucide-react';
+import { Calendar, Clock, ChevronRight, CreditCard, XCircle } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -16,6 +16,7 @@ const MyBookings = () => {
 
   const [bookings, setBookings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState(null);
 
   const getMyBookings = async () => {
     try {
@@ -25,7 +26,6 @@ const MyBookings = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (data.success) {
-        // Filter out bookings without movie
         const validData = data.bookings.filter(item => item.show && item.show.movie);
         setBookings(validData);
       }
@@ -37,20 +37,43 @@ const MyBookings = () => {
     }
   };
 
+  const handleCancelBooking = async (bookingId, showId, seats) => {
+    if (!confirm("Are you sure you want to cancel this booking? Seats will be released.")) {
+      return;
+    }
+    
+    try {
+      setCancellingId(bookingId);
+      const token = await getToken();
+      const { data } = await axios.delete(`/api/booking/cancel/${bookingId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (data.success) {
+        toast.success("Booking cancelled and seats released!");
+        getMyBookings(); // Refresh bookings list
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      console.error("Cancel error:", error);
+      toast.error("Failed to cancel booking");
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
   // Handle payment success from Stripe redirect
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
-    const success = queryParams.get('success');
-    const bookingId = queryParams.get('bookingId');
-    const showId = queryParams.get('showId');
-    const seats = queryParams.get('seats');
+    const sessionId = queryParams.get('session_id');
+    const canceled = queryParams.get('canceled');
 
-    if (success === 'true' && bookingId && showId && seats) {
+    if (sessionId) {
       toast.success("Payment Successful! Your seats are confirmed.");
-      // Clear URL params and refresh
       navigate('/my-bookings', { replace: true });
       getMyBookings();
-    } else if (location.search.includes('canceled=true')) {
+    } else if (canceled === 'true') {
       toast.error("Payment cancelled. No seats were booked.");
       navigate('/my-bookings', { replace: true });
     }
@@ -121,35 +144,49 @@ const MyBookings = () => {
                 </div>
 
                 {/* Tickets & Status Action */}
-                <div className='mt-auto pt-6 border-t border-white/5 flex items-center justify-between'>
-                  <div className='flex gap-8'>
-                    <div className='group/label'>
-                      <p className='text-[9px] font-black text-gray-600 uppercase tracking-widest mb-1 group-hover/label:text-primary transition-colors'>Tickets</p>
-                      <p className='text-md font-black italic'>{item.bookedSeats?.length.toString().padStart(2, '0')}</p>
-                    </div>
-                    <div className='group/label'>
-                      <p className='text-[9px] font-black text-gray-600 uppercase tracking-widest mb-1 group-hover/label:text-primary transition-colors'>Seat No.</p>
-                      <div className='flex gap-2 flex-wrap'>
-                        {item.bookedSeats?.map(seat => (
-                          <span key={seat} className='text-sm font-black text-primary/80 group-hover:text-white transition-colors'>{seat}</span>
-                        ))}
+                <div className='mt-auto pt-6 border-t border-white/5'>
+                  <div className='flex items-center justify-between'>
+                    <div className='flex gap-8'>
+                      <div className='group/label'>
+                        <p className='text-[9px] font-black text-gray-600 uppercase tracking-widest mb-1 group-hover/label:text-primary transition-colors'>Tickets</p>
+                        <p className='text-md font-black italic'>{item.bookedSeats?.length.toString().padStart(2, '0')}</p>
+                      </div>
+                      <div className='group/label'>
+                        <p className='text-[9px] font-black text-gray-600 uppercase tracking-widest mb-1 group-hover/label:text-primary transition-colors'>Seat No.</p>
+                        <div className='flex gap-2 flex-wrap'>
+                          {item.bookedSeats?.map(seat => (
+                            <span key={seat} className='text-sm font-black text-primary/80 group-hover:text-white transition-colors'>{seat}</span>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* ✅ FIXED: Only show Pay Now for unpaid bookings with paymentLink */}
-                  {!item.isPaid && item.paymentLink ? (
-                    <a
-                      href={item.paymentLink}
-                      className='flex items-center gap-2 bg-primary text-black px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:shadow-[0_0_20px_rgba(var(--primary-rgb),0.4)] hover:-translate-y-0.5 transition-all z-20'
-                    >
-                      <CreditCard className='w-3.5 h-3.5' /> Pay Now
-                    </a>
-                  ) : item.isPaid ? (
-                    <div className='flex items-center gap-2 text-green-400 text-xs font-bold uppercase tracking-wider'>
-                      ✓ Payment Confirmed
+                    <div className='flex gap-3'>
+                      {/* Cancel Button */}
+                      <button
+                        onClick={() => handleCancelBooking(item._id, item.show?._id, item.bookedSeats)}
+                        disabled={cancellingId === item._id}
+                        className='flex items-center gap-2 bg-red-500/10 text-red-400 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-500/20 hover:-translate-y-0.5 transition-all disabled:opacity-50'
+                      >
+                        <XCircle className='w-3.5 h-3.5' /> 
+                        {cancellingId === item._id ? 'Cancelling...' : 'Cancel'}
+                      </button>
+
+                      {/* Pay Now Button (only for unpaid) */}
+                      {!item.isPaid && item.paymentLink ? (
+                        <a
+                          href={item.paymentLink}
+                          className='flex items-center gap-2 bg-primary text-black px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:shadow-[0_0_20px_rgba(var(--primary-rgb),0.4)] hover:-translate-y-0.5 transition-all z-20'
+                        >
+                          <CreditCard className='w-3.5 h-3.5' /> Pay Now
+                        </a>
+                      ) : item.isPaid ? (
+                        <div className='flex items-center gap-2 text-green-400 text-xs font-bold uppercase tracking-wider'>
+                          ✓ Payment Confirmed
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
+                  </div>
                 </div>
               </div>
             </div>
