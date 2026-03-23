@@ -4,7 +4,7 @@ import BlurCircle from '../components/BlurCircle';
 import timeFormat from '../lib/timeFormat';
 import { dateFormat } from '../lib/dateFormate';
 import { useAppContext } from '../context/AppContext';
-import { Calendar, Clock, ChevronRight, CreditCard, XCircle } from 'lucide-react';
+import { Calendar, Clock, ChevronRight, CreditCard, XCircle, Ticket, X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -17,6 +17,8 @@ const MyBookings = () => {
   const [bookings, setBookings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState(null);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
   const getMyBookings = async () => {
     try {
@@ -51,7 +53,7 @@ const MyBookings = () => {
       
       if (data.success) {
         toast.success("Booking cancelled and seats released!");
-        getMyBookings(); // Refresh bookings list
+        getMyBookings();
       } else {
         toast.error(data.message);
       }
@@ -63,7 +65,11 @@ const MyBookings = () => {
     }
   };
 
-  // Handle payment success from Stripe redirect
+  const handleShowTicket = (booking) => {
+    setSelectedTicket(booking);
+    setShowModal(true);
+  };
+
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const sessionId = queryParams.get('session_id');
@@ -103,7 +109,6 @@ const MyBookings = () => {
               key={item._id || index}
               className='group relative flex flex-col md:flex-row bg-white/[0.01] border border-white/5 rounded-2xl overflow-hidden hover:bg-white/[0.03] hover:border-primary/20 hover:shadow-[0_0_40px_rgba(0,0,0,0.5)] transition-all duration-500'
             >
-              {/* Poster Section */}
               <div className='relative md:w-48 shrink-0 overflow-hidden'>
                 <img
                   src={item.show?.movie?.poster_path ? image_base_url + item.show.movie.poster_path : '/placeholder.jpg'}
@@ -116,7 +121,6 @@ const MyBookings = () => {
                 </div>
               </div>
 
-              {/* Info Section */}
               <div className='flex-1 flex flex-col p-6 relative z-10'>
                 <div className='flex justify-between items-start'>
                   <div>
@@ -143,9 +147,8 @@ const MyBookings = () => {
                   </div>
                 </div>
 
-                {/* Tickets & Status Action */}
                 <div className='mt-auto pt-6 border-t border-white/5'>
-                  <div className='flex items-center justify-between'>
+                  <div className='flex items-center justify-between flex-wrap gap-4'>
                     <div className='flex gap-8'>
                       <div className='group/label'>
                         <p className='text-[9px] font-black text-gray-600 uppercase tracking-widest mb-1 group-hover/label:text-primary transition-colors'>Tickets</p>
@@ -162,7 +165,15 @@ const MyBookings = () => {
                     </div>
 
                     <div className='flex gap-3'>
-                      {/* Cancel Button */}
+                      {item.isPaid && (
+                        <button
+                          onClick={() => handleShowTicket(item)}
+                          className='flex items-center gap-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all'
+                        >
+                          <Ticket className='w-3.5 h-3.5' /> Show Ticket
+                        </button>
+                      )}
+                      
                       <button
                         onClick={() => handleCancelBooking(item._id, item.show?._id, item.bookedSeats)}
                         disabled={cancellingId === item._id}
@@ -172,7 +183,6 @@ const MyBookings = () => {
                         {cancellingId === item._id ? 'Cancelling...' : 'Cancel'}
                       </button>
 
-                      {/* Pay Now Button (only for unpaid) */}
                       {!item.isPaid && item.paymentLink ? (
                         <a
                           href={item.paymentLink}
@@ -197,6 +207,70 @@ const MyBookings = () => {
           )}
         </div>
       </div>
+
+      {/* Ticket Modal */}
+      {showModal && selectedTicket && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowModal(false)}>
+          <div className="bg-gradient-to-br from-gray-900 to-black rounded-2xl max-w-md w-full border border-white/20 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            {/* Ticket Header */}
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 text-center">
+              <Ticket className="w-12 h-12 mx-auto mb-3 text-white" />
+              <h2 className="text-2xl font-black text-white">Movie Ticket</h2>
+              <p className="text-purple-200 text-sm mt-1">Valid for one entry</p>
+            </div>
+            
+            {/* Ticket Content */}
+            <div className="p-6 space-y-4">
+              <div className="border-b border-white/10 pb-3">
+                <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Movie</p>
+                <p className="text-white font-bold text-lg">{selectedTicket.show?.movie?.title}</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="border-b border-white/10 pb-3">
+                  <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Date</p>
+                  <p className="text-white font-semibold">{selectedTicket.show?.showDateTime ? dateFormat(selectedTicket.show.showDateTime) : 'N/A'}</p>
+                </div>
+                <div className="border-b border-white/10 pb-3">
+                  <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Time</p>
+                  <p className="text-white font-semibold">{selectedTicket.show?.showDateTime ? new Date(selectedTicket.show.showDateTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</p>
+                </div>
+              </div>
+              
+              <div className="border-b border-white/10 pb-3">
+                <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Seats</p>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {selectedTicket.bookedSeats?.map(seat => (
+                    <span key={seat} className="bg-purple-600/30 text-purple-300 px-3 py-1 rounded-lg font-bold text-sm">{seat}</span>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-center pt-2">
+                <div>
+                  <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Amount Paid</p>
+                  <p className="text-2xl font-black text-green-400">₹{selectedTicket.amount}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Booking ID</p>
+                  <p className="text-white font-mono text-sm">#{selectedTicket._id?.slice(-8)}</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Ticket Footer */}
+            <div className="bg-white/5 p-4 text-center border-t border-white/10">
+              <p className="text-gray-400 text-xs">Please show this ticket at the cinema entrance</p>
+              <button
+                onClick={() => setShowModal(false)}
+                className="mt-3 text-purple-400 hover:text-purple-300 text-sm font-semibold"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

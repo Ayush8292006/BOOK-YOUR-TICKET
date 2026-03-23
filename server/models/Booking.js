@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 
-
 const bookingSchema = new mongoose.Schema({
     user: {type: String, required:true, ref: 'User'},
     show: {type: String, required:true, ref: 'Show'},
@@ -8,6 +7,7 @@ const bookingSchema = new mongoose.Schema({
     bookedSeats: {type: Array, required:true},
     isPaid: {type: Boolean, default:false},
     paymentLink: {type: String},
+    userEmail: {type: String}  // ✅ Add this field
 },{timestamps: true})
 
 const Booking = mongoose.model("Booking", bookingSchema);
