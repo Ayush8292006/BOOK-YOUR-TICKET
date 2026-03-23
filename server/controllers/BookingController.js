@@ -1,26 +1,18 @@
-import { inngest } from "../inngest/index.js";
 import Booking from "../models/Booking.js";
 import Show from "../models/Show.js";
 import Stripe from "stripe";
 
 const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// ✅ CHECK SEAT
+// Check seat availability
 const checkSeatAvailability = async (showId, selectedSeats) => {
-  try {
-    const showData = await Show.findById(showId);
-    if (!showData) return false;
-
-    const occupiedSeats = showData.occupiedSeats || {};
-
-    return !selectedSeats.some(seat => occupiedSeats[seat]);
-  } catch (error) {
-    console.log(error.message);
-    return false;
-  }
+  const showData = await Show.findById(showId);
+  if (!showData) return false;
+  const occupiedSeats = showData.occupiedSeats || [];
+  return !selectedSeats.some(seat => occupiedSeats.includes(seat));
 };
 
-// ✅ CREATE BOOKING
+// CREATE BOOKING - Payment ke baad hi seats book hongi
 export const createBooking = async (req, res) => {
   try {
     const { showId, seats } = req.body;
@@ -31,19 +23,16 @@ export const createBooking = async (req, res) => {
       return res.json({ success: false, message: "No seats selected" });
     }
 
+    // Check if seats are available
     const isAvailable = await checkSeatAvailability(showId, seats);
-
     if (!isAvailable) {
-      return res.json({
-        success: false,
-        message: "Seats already booked",
-      });
+      return res.json({ success: false, message: "Seats already booked by someone else" });
     }
 
     const showData = await Show.findById(showId).populate("movie");
-
     const amount = Number(showData.showPrice) * seats.length;
 
+    // Create booking with isPaid = false (seats not blocked yet)
     const booking = await Booking.create({
       user: userId,
       show: showId,
@@ -52,71 +41,53 @@ export const createBooking = async (req, res) => {
       isPaid: false,
     });
 
+    // Create Stripe session
     const session = await stripeInstance.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
-      line_items: [
-        {
-          price_data: {
-            currency: "inr",
-            product_data: {
-              name: showData.movie.title,
-            },
-            unit_amount: amount * 100,
-          },
-          quantity: 1,
+      line_items: [{
+        price_data: {
+          currency: "inr",
+          product_data: { name: showData.movie.title },
+          unit_amount: amount * 100,
         },
-      ],
-      success_url: `${origin}/my-bookings?success=true`,
+        quantity: 1,
+      }],
+      success_url: `${origin}/my-bookings?success=true&bookingId=${booking._id}&showId=${showId}&seats=${seats.join(",")}`,
       cancel_url: `${origin}/my-bookings?canceled=true`,
-      metadata: {
+      metadata: { 
         bookingId: booking._id.toString(),
+        showId: showId,
+        seats: seats.join(",")
       },
     });
 
     booking.paymentLink = session.url;
     await booking.save();
 
-    await inngest.send({
-      name: "app/checkpayment",
-      data: {
-        bookingId: booking._id.toString()
-      }
-    })
-
     res.json({ success: true, url: session.url });
-
   } catch (error) {
-    console.log(error.message);
+    console.error("Booking error:", error);
     res.json({ success: false, message: error.message });
   }
 };
 
-// ✅ GET OCCUPIED SEATS  (🔥 MISSING THA)
+// GET OCCUPIED SEATS - Sirf paid bookings ke seats show honge
 export const getOccupiedSeats = async (req, res) => {
   try {
     const { showId } = req.params;
-
     const showData = await Show.findById(showId);
-
-    const occupiedSeats = Object.keys(showData.occupiedSeats || {});
-
+    const occupiedSeats = showData.occupiedSeats || []; 
     res.json({ success: true, occupiedSeats });
-
   } catch (error) {
-    console.log(error.message);
-    res.json({
-      success: false,
-      message: error.message,
-    });
+    res.json({ success: false, message: error.message });
   }
 };
 
-// ✅ GET USER BOOKINGS (🔥 MISSING THA)
+// GET USER BOOKINGS
 export const getUserBookings = async (req, res) => {
   try {
     const userId = req.auth().userId;
-
     const bookings = await Booking.find({ user: userId })
       .populate({
         path: "show",
@@ -124,16 +95,9 @@ export const getUserBookings = async (req, res) => {
       })
       .sort({ createdAt: -1 });
 
-    res.json({
-      success: true,
-      bookings,
-    });
-
+    res.json({ success: true, bookings });
   } catch (error) {
     console.log(error.message);
-    res.json({
-      success: false,
-      message: error.message,
-    });
+    res.json({ success: false, message: error.message });
   }
 };

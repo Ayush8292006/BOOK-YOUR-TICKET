@@ -2,7 +2,6 @@ import axios from "axios";
 import Show from "../models/Show.js";
 import Movie from "../models/Movie.js";
 
-// API TO GET NOW PLAYING MOVIES
 export const getNowPlayingMovies = async (req, res) => {
   try {
     const { data } = await axios.get(
@@ -17,7 +16,6 @@ export const getNowPlayingMovies = async (req, res) => {
   }
 };
 
-// API TO ADD A NEW SHOW
 export const addShow = async (req, res) => {
   try {
     const { movieId, showsInput, showPrice } = req.body;
@@ -26,7 +24,6 @@ export const addShow = async (req, res) => {
       return res.status(400).json({ success: false, message: "Missing required fields" });
     }
 
-    // Check if movie exists (Using String ID)
     let movie = await Movie.findById(String(movieId));
 
     if (!movie) {
@@ -43,7 +40,7 @@ export const addShow = async (req, res) => {
       const movieCreditsData = movieCreditResponse.data;
 
       movie = await Movie.create({
-        _id: String(movieId), // Ensure it's a String
+        _id: String(movieId),
         title: movieApiData.title,
         overview: movieApiData.overview,
         poster_path: movieApiData.poster_path,
@@ -60,11 +57,10 @@ export const addShow = async (req, res) => {
 
     const showsToCreate = [];
     showsInput.forEach((show) => {
-      const showDate = show.date; 
+      const showDate = show.date;
       show.time.forEach((t) => {
-        // Handle both "HH:mm" and "HH:mm:ss"
         const timeStr = t.length === 5 ? `${t}:00` : t;
-        const dateTimeString = `${showDate}T${timeStr}`; 
+        const dateTimeString = `${showDate}T${timeStr}`;
         const finalDate = new Date(dateTimeString);
 
         if (!isNaN(finalDate.getTime())) {
@@ -72,7 +68,7 @@ export const addShow = async (req, res) => {
             movie: String(movieId),
             showDateTime: finalDate,
             showPrice: Number(showPrice),
-            occupiedSeats: {}, // Default empty object
+            occupiedSeats: [],
           });
         }
       });
@@ -91,26 +87,21 @@ export const addShow = async (req, res) => {
 
 export const getShows = async (req, res) => {
   try {
-    // 1. Aaj ki shuruat (Midnight)
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
-    // 2. Active shows dhoondhein
     const shows = await Show.find({
       showDateTime: { $gte: startOfToday },
     });
-
-    console.log("Shows found in DB:", shows.length);
 
     if (shows.length === 0) {
       return res.json({ 
         success: true, 
         shows: [], 
-        message: "No active shows found. Please add a show with a FUTURE date." 
+        message: "No active shows found" 
       });
     }
 
-    // 3. Unique Movie IDs nikal kar unki details fetch karein
     const movieIds = [...new Set(shows.map(s => s.movie))];
     const movies = await Movie.find({ _id: { $in: movieIds } });
 
@@ -124,7 +115,7 @@ export const getShows = async (req, res) => {
   }
 };
 
-// API TO GET SINGLE MOVIE SHOWS
+// IMPORTANT: This function includes PRICE in response
 export const getShow = async (req, res) => {
   try {
     const { movieId } = req.params;
@@ -145,6 +136,7 @@ export const getShow = async (req, res) => {
       dateTime[date].push({
         time: show.showDateTime,
         showId: show._id,
+        price: show.showPrice  // ✅ PRICE INCLUDED HERE
       });
     });
 

@@ -1,14 +1,10 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
-const showSchema = new mongoose.Schema(
-    {
-        // TMDB ID string hota hai, isliye String sahi hai
-        movie: { type: String, required: true, ref: 'Movie' }, 
-        showDateTime: { type: Date, required: true },
-        showPrice: { type: Number, required: true },
-        occupiedSeats: { type: Object, default: {} }, 
-    }, { minimize: false }
-);
+const ShowSchema = new mongoose.Schema({
+  movie: { type: String, ref: 'Movie' },
+  showDateTime: { type: Date, required: true },
+  showPrice: { type: Number, required: true },
+  occupiedSeats: { type: [String], default: [] } // ✅ array of strings
+}, { timestamps: true });
 
-const Show = mongoose.model("Show", showSchema);
-export default Show;
+export default mongoose.model('Show', ShowSchema);

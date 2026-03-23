@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import Booking from "../models/Booking.js";
+import Show from "../models/Show.js";
 
 const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -22,18 +23,38 @@ export const stripeWebHooks = async (req, res) => {
   try {
     switch (event.type) {
 
-      // ✅ PAYMENT SUCCESS
+      // ✅ PAYMENT SUCCESS - Yahan seats book hoti hain
       case "checkout.session.completed": {
         const session = event.data.object;
+        const { bookingId, showId, seats } = session.metadata;
+        
+        if (!bookingId || !showId || !seats) {
+          console.log("❌ Missing metadata in webhook");
+          return res.status(400).json({ success: false, message: "Missing metadata" });
+        }
 
-        const bookingId = session.metadata.bookingId;
+        const seatsArray = seats.split(",");
+        
+        console.log(`✅ Payment successful for booking: ${bookingId}`);
+        console.log(`📦 Seats to book: ${seatsArray.join(", ")}`);
 
-        await Booking.findByIdAndUpdate(bookingId, {
+        // Update booking to paid
+        const booking = await Booking.findByIdAndUpdate(bookingId, {
           isPaid: true,
-          paymentLink: "",
+          paymentLink: ""
+        }, { new: true });
+
+        if (!booking) {
+          console.log(`❌ Booking ${bookingId} not found`);
+          return res.status(404).json({ success: false, message: "Booking not found" });
+        }
+
+        // Block seats in Show model
+        await Show.findByIdAndUpdate(showId, {
+          $addToSet: { occupiedSeats: { $each: seatsArray } }
         });
 
-        console.log("✅ Payment successful, booking updated");
+        console.log(`✅ Seats ${seatsArray.join(", ")} booked successfully for show ${showId}`);
         break;
       }
 
@@ -45,6 +66,6 @@ export const stripeWebHooks = async (req, res) => {
 
   } catch (error) {
     console.log("❌ Webhook processing error:", error.message);
-    res.status(500).json({ success: false });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
