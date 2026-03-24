@@ -4,7 +4,7 @@ import BlurCircle from '../components/BlurCircle';
 import timeFormat from '../lib/timeFormat';
 import { dateFormat } from '../lib/dateFormate';
 import { useAppContext } from '../context/AppContext';
-import { Calendar, Clock, ChevronRight, CreditCard, XCircle, Ticket, X } from 'lucide-react';
+import { Calendar, Clock, CreditCard, XCircle, Ticket, X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -165,6 +165,7 @@ const MyBookings = () => {
                     </div>
 
                     <div className='flex gap-3'>
+                      {/* ✅ Show Ticket Button - Sirf Paid Bookings Ke Liye */}
                       {item.isPaid && (
                         <button
                           onClick={() => handleShowTicket(item)}
@@ -174,15 +175,19 @@ const MyBookings = () => {
                         </button>
                       )}
                       
-                      <button
-                        onClick={() => handleCancelBooking(item._id, item.show?._id, item.bookedSeats)}
-                        disabled={cancellingId === item._id}
-                        className='flex items-center gap-2 bg-red-500/10 text-red-400 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-500/20 hover:-translate-y-0.5 transition-all disabled:opacity-50'
-                      >
-                        <XCircle className='w-3.5 h-3.5' /> 
-                        {cancellingId === item._id ? 'Cancelling...' : 'Cancel'}
-                      </button>
+                      {/* ✅ Cancel Button - Sirf Unpaid Bookings Ke Liye */}
+                      {!item.isPaid && (
+                        <button
+                          onClick={() => handleCancelBooking(item._id, item.show?._id, item.bookedSeats)}
+                          disabled={cancellingId === item._id}
+                          className='flex items-center gap-2 bg-red-500/10 text-red-400 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-500/20 hover:-translate-y-0.5 transition-all disabled:opacity-50'
+                        >
+                          <XCircle className='w-3.5 h-3.5' /> 
+                          {cancellingId === item._id ? 'Cancelling...' : 'Cancel'}
+                        </button>
+                      )}
 
+                      {/* ✅ Pay Now Button - Sirf Unpaid Bookings Ke Liye */}
                       {!item.isPaid && item.paymentLink ? (
                         <a
                           href={item.paymentLink}
@@ -212,14 +217,12 @@ const MyBookings = () => {
       {showModal && selectedTicket && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowModal(false)}>
           <div className="bg-gradient-to-br from-gray-900 to-black rounded-2xl max-w-md w-full border border-white/20 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            {/* Ticket Header */}
             <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 text-center">
               <Ticket className="w-12 h-12 mx-auto mb-3 text-white" />
               <h2 className="text-2xl font-black text-white">Movie Ticket</h2>
               <p className="text-purple-200 text-sm mt-1">Valid for one entry</p>
             </div>
             
-            {/* Ticket Content */}
             <div className="p-6 space-y-4">
               <div className="border-b border-white/10 pb-3">
                 <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Movie</p>
@@ -258,7 +261,6 @@ const MyBookings = () => {
               </div>
             </div>
             
-            {/* Ticket Footer */}
             <div className="bg-white/5 p-4 text-center border-t border-white/10">
               <p className="text-gray-400 text-xs">Please show this ticket at the cinema entrance</p>
               <button

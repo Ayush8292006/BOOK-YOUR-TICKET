@@ -5,7 +5,7 @@ import nodemailer from "nodemailer";
 
 const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// Email transporter
+// Email transporter setup
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -14,7 +14,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Send confirmation email
+// Function to send booking confirmation email
 const sendBookingConfirmationEmail = async (userEmail, bookingDetails) => {
   const { movieName, showDate, showTime, seats, amount, bookingId } = bookingDetails;
   
@@ -25,18 +25,92 @@ const sendBookingConfirmationEmail = async (userEmail, bookingDetails) => {
       <meta charset="UTF-8">
       <title>Booking Confirmation</title>
       <style>
-        body { font-family: 'Arial', sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
-        .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
-        .header h1 { margin: 0; font-size: 28px; }
-        .content { padding: 30px; }
-        .ticket { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 12px; padding: 20px; margin: 20px 0; }
-        .ticket-detail { margin: 15px 0; padding: 10px; background: white; border-radius: 8px; display: flex; justify-content: space-between; }
-        .ticket-label { font-weight: bold; color: #555; }
-        .ticket-value { font-weight: bold; color: #333; }
-        .seats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-        .seat-badge { background: #667eea; color: white; padding: 5px 12px; border-radius: 20px; font-size: 14px; font-weight: bold; }
-        .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 12px; }
+        body {
+          font-family: 'Arial', sans-serif;
+          background-color: #f4f4f4;
+          margin: 0;
+          padding: 0;
+        }
+        .container {
+          max-width: 600px;
+          margin: 20px auto;
+          background-color: #ffffff;
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .header {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 30px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 28px;
+        }
+        .header p {
+          margin: 10px 0 0;
+          opacity: 0.9;
+        }
+        .content {
+          padding: 30px;
+        }
+        .ticket {
+          background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+          border-radius: 12px;
+          padding: 20px;
+          margin: 20px 0;
+        }
+        .ticket-detail {
+          margin: 15px 0;
+          padding: 10px;
+          background: white;
+          border-radius: 8px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .ticket-label {
+          font-weight: bold;
+          color: #555;
+          font-size: 14px;
+        }
+        .ticket-value {
+          font-weight: bold;
+          color: #333;
+          font-size: 16px;
+        }
+        .seats {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 10px;
+        }
+        .seat-badge {
+          background: #667eea;
+          color: white;
+          padding: 5px 12px;
+          border-radius: 20px;
+          font-size: 14px;
+          font-weight: bold;
+        }
+        .footer {
+          background-color: #f8f9fa;
+          padding: 20px;
+          text-align: center;
+          color: #666;
+          font-size: 12px;
+        }
+        .button {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 12px 24px;
+          text-decoration: none;
+          border-radius: 8px;
+          display: inline-block;
+          margin-top: 20px;
+        }
       </style>
     </head>
     <body>
@@ -74,9 +148,15 @@ const sendBookingConfirmationEmail = async (userEmail, bookingDetails) => {
               <span class="ticket-value">#${bookingId.slice(-6)}</span>
             </div>
           </div>
+          <p style="text-align: center; color: #666; margin-top: 20px;">
+            Please show this ticket at the cinema entrance.
+          </p>
+          <p style="text-align: center; color: #999; font-size: 12px;">
+            Thank you for booking with us! Enjoy your movie experience 🍿
+          </p>
         </div>
         <div class="footer">
-          <p>Thank you for booking with us! Enjoy your movie experience 🍿</p>
+          <p>© Movie Ticket Booking App</p>
         </div>
       </div>
     </body>
@@ -84,7 +164,7 @@ const sendBookingConfirmationEmail = async (userEmail, bookingDetails) => {
   `;
 
   await transporter.sendMail({
-    from: process.env.EMAIL_USER,
+    from: `"Movie Ticket App" <${process.env.EMAIL_USER}>`,
     to: userEmail,
     subject: `🎬 Booking Confirmed - ${movieName}`,
     html: emailHtml
@@ -114,6 +194,10 @@ export const stripeWebHooks = async (req, res) => {
         const session = event.data.object;
         const { bookingId, showId, seats, userEmail } = session.metadata;
         
+        console.log("📧 Webhook received - Processing payment...");
+        console.log("📧 Booking ID:", bookingId);
+        console.log("📧 User Email:", userEmail);
+        
         if (!bookingId || !showId || !seats) {
           console.log("❌ Missing metadata in webhook");
           return res.status(400).json({ success: false, message: "Missing metadata" });
@@ -122,7 +206,9 @@ export const stripeWebHooks = async (req, res) => {
         const seatsArray = seats.split(",");
         
         console.log(`✅ Payment successful for booking: ${bookingId}`);
+        console.log(`📦 Locking seats: ${seatsArray.join(", ")}`);
 
+        // Update booking to paid
         const booking = await Booking.findByIdAndUpdate(bookingId, {
           isPaid: true,
           paymentLink: ""
@@ -133,25 +219,40 @@ export const stripeWebHooks = async (req, res) => {
           return res.status(404).json({ success: false, message: "Booking not found" });
         }
 
+        // Lock seats in Show model
         await Show.findByIdAndUpdate(showId, {
           $addToSet: { occupiedSeats: { $each: seatsArray } }
         });
 
-        // Send email confirmation
-        const showData = await Show.findById(showId).populate("movie");
-        const showDate = new Date(showData.showDateTime).toLocaleDateString('en-IN');
-        const showTime = new Date(showData.showDateTime).toLocaleTimeString('en-IN');
-        
-        await sendBookingConfirmationEmail(userEmail, {
-          movieName: showData.movie.title,
-          showDate,
-          showTime,
-          seats: seatsArray,
-          amount: booking.amount,
-          bookingId: booking._id.toString()
-        });
+        console.log(`✅ Seats ${seatsArray.join(", ")} locked successfully`);
 
-        console.log(`✅ Email sent to ${userEmail}`);
+        // Send email confirmation
+        try {
+          const showData = await Show.findById(showId).populate("movie");
+          const showDate = new Date(showData.showDateTime).toLocaleDateString('en-IN', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+          });
+          const showTime = new Date(showData.showDateTime).toLocaleTimeString('en-IN', {
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          
+          await sendBookingConfirmationEmail(userEmail, {
+            movieName: showData.movie.title,
+            showDate,
+            showTime,
+            seats: seatsArray,
+            amount: booking.amount,
+            bookingId: booking._id.toString()
+          });
+          
+          console.log(`✅ Email sent successfully to ${userEmail}`);
+        } catch (emailError) {
+          console.error("❌ Email sending failed:", emailError.message);
+        }
+
         break;
       }
 
