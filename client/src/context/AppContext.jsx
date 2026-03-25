@@ -147,3 +147,5 @@ const toggleFavorite = async (movieId) => {
 };
 
 export const useAppContext = () => useContext(AppContext);
+
+// App Context Provider - Latest Version

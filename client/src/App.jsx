@@ -21,6 +21,7 @@ import AboutUs from './pages/AboutUs'
 import Legal from './pages/Legal'
 import Loading from './components/Loading'
 
+// Movie Ticket Booking App - Updated version
 
 const App = () => {
 

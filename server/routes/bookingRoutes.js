@@ -16,3 +16,4 @@ bookingRouter.get("/user-bookings", requireAuth(), getUserBookings);
 bookingRouter.delete("/cancel/:bookingId", requireAuth(), cancelBooking);
 
 export default bookingRouter;
+

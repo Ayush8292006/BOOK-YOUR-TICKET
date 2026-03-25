@@ -8,6 +8,8 @@ import Loading from "../components/Loading";
 import { useAppContext } from "../context/AppContext";
 import timeFormat from "../lib/timeFormat";
 
+// Movie Details Page - Enhanced Version
+
 const MovieDetails = () => {
   const navigate = useNavigate();
   const { id } = useParams();

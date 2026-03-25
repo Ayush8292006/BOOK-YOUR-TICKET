@@ -4,6 +4,8 @@ import { assets } from '../assets/assets'
 import { MenuIcon, TicketPlus, XIcon, Heart } from 'lucide-react'
 import { useClerk, UserButton, useUser } from "@clerk/clerk-react";
 
+// CineBook Navbar Component - Updated
+
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
