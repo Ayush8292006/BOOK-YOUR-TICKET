@@ -45,17 +45,16 @@ const Footer = () => {
             <ul className="space-y-4">
               <li><Link to="/" className="text-sm md:text-base text-gray-400 hover:text-white transition-colors">Home</Link></li>
               <li><Link to="/movies" className="text-sm md:text-base text-gray-400 hover:text-white transition-colors">Now Showing</Link></li>
+              <li><Link to="/top-rated" className="text-sm md:text-base text-gray-400 hover:text-white transition-colors">Top Rated</Link></li>
               <li><Link to="/my-bookings" className="text-sm md:text-base text-gray-400 hover:text-white transition-colors">My Tickets</Link></li>
             </ul>
           </div>
 
-          {/* Company - Legal Section with Hash Links */}
+          {/* Company - Legal Section */}
           <div className="space-y-6">
             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/80">The Studio</h3>
             <ul className="space-y-4">
               <li><Link to="/about" className="text-sm md:text-base text-gray-400 hover:text-white transition-colors">About Us</Link></li>
-              
-              {/* ✅ Smooth Scroll Linked to Legal Page */}
               <li><Link to="/legal#privacy" className="text-sm md:text-base text-gray-400 hover:text-white transition-colors">Privacy Policy</Link></li>
               <li><Link to="/legal#terms" className="text-sm md:text-base text-gray-400 hover:text-white transition-colors">Terms of Use</Link></li>
             </ul>
@@ -93,7 +92,7 @@ const Footer = () => {
           <p className="text-[10px] font-bold text-gray-600 uppercase tracking-[0.2em]">
             {currentYear} © CineBook • Crafted with <span className="text-primary">♥</span> by <span className="text-white hover:text-primary cursor-pointer transition-colors">Ayush</span>
           </p>
-          <p className="text-[9px] text-gray-800 font-medium mt-1">Version 2.0.6 • All Rights Reserved</p>
+          <p className="text-[9px] text-gray-800 font-medium mt-1">Version 2.0.7 • All Rights Reserved</p>
         </div>
       </div>
 
